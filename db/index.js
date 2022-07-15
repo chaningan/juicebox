@@ -1,3 +1,5 @@
+require("dotenv").config();
+// console.log(process.env.JWT_SECRET);
 const { Client } = require("pg"); // imports the pg module
 
 const client = new Client("postgres://localhost:5432/juicebox-dev");
@@ -56,6 +58,25 @@ async function getAllUsers() {
   return rows;
 }
 
+async function getUserByUsername(username) {
+  try {
+    const {
+      rows: [user],
+    } = await client.query(
+      `
+      SELECT *
+      FROM users
+      WHERE username=$1;
+    `,
+      [username]
+    );
+
+    return user;
+  } catch (error) {
+    throw error;
+  }
+}
+
 async function getAllPosts() {
   try {
     const { rows: postIds } = await client.query(`
@@ -109,7 +130,6 @@ async function updateUser(id, fields = {}) {
 }
 
 async function updatePost(postId, fields = {}) {
-
   const { tags } = fields;
   delete fields.tags;
 
@@ -119,14 +139,17 @@ async function updatePost(postId, fields = {}) {
 
   try {
     if (setString.length > 0) {
-      await client.query(`
+      await client.query(
+        `
         UPDATE posts
-        SET ${ setString }
-        WHERE id=${ postId }
+        SET ${setString}
+        WHERE id=${postId}
         RETURNING *;
-      `, Object.values(fields));
+      `,
+        Object.values(fields)
+      );
     }
-    
+
     // return early if there's no tags to update
     if (tags === undefined) {
       return await getPostById(postId);
@@ -134,17 +157,18 @@ async function updatePost(postId, fields = {}) {
 
     // make any new tags that need to be made
     const tagList = await createTags(tags);
-    const tagListIdString = tagList.map(
-      tag => `${ tag.id }`
-    ).join(', ');
+    const tagListIdString = tagList.map((tag) => `${tag.id}`).join(", ");
 
     // delete any post_tags from the database which aren't in that tagList
-    await client.query(`
+    await client.query(
+      `
       DELETE FROM post_tags
       WHERE "tagId"
-      NOT IN (${ tagListIdString })
+      NOT IN (${tagListIdString})
       AND "postId"=$1;
-    `, [postId]);
+    `,
+      [postId]
+    );
 
     // and create post_tags as necessary
     await addTagsToPost(postId, tagList);
@@ -295,20 +319,20 @@ async function getPostById(postId) {
   }
 }
 
-
 async function getPostsByTagName(tagName) {
   try {
-    const { rows: postIds } = await client.query(`
+    const { rows: postIds } = await client.query(
+      `
       SELECT posts.id
       FROM posts
       JOIN post_tags ON posts.id=post_tags."postId"
       JOIN tags ON tags.id=post_tags."tagId"
       WHERE tags.name=$1;
-    `, [tagName]);
+    `,
+      [tagName]
+    );
 
-    return await Promise.all(postIds.map(
-      post => getPostById(post.id)
-    ));
+    return await Promise.all(postIds.map((post) => getPostById(post.id)));
   } catch (error) {
     throw error;
   }
@@ -326,6 +350,7 @@ module.exports = {
   client,
   createUser,
   getAllUsers,
+  getUserByUsername,
   getAllPosts,
   updateUser,
   createPost,
@@ -337,6 +362,5 @@ module.exports = {
   getPostById,
   addTagsToPost,
   getPostsByTagName,
-  getAllTags
+  getAllTags,
 };
-
