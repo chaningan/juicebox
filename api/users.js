@@ -4,8 +4,6 @@ const jwt = require("jsonwebtoken");
 const { getUserByUsername, createUser } = require("../db");
 
 usersRouter.use((req, res, next) => {
-  console.log("A request is being made to /users");
-
   next();
 });
 
@@ -33,7 +31,6 @@ usersRouter.post("/login", async (req, res, next) => {
     const user = await getUserByUsername(username);
 
     if (user && user.password == password) {
-      // create token & return to user
       const token = jwt.sign(user, process.env.JWT_SECRET);
 
       res.send({ message: "you're logged in!", token });
